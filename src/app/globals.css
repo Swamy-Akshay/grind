@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root { --background: #090909; --foreground: #f3f4f6; }
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --color-ash: #cbd5e1;
+}
+
+body {
+  background-color: var(--background);
+  background-image:
+    linear-gradient(rgba(102, 102, 102, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(102, 102, 102, 0.16) 1px, transparent 1px),
+    radial-gradient(circle at 50% -20%, rgba(255, 106, 0, 0.13), transparent 45%);
+  background-size: 28px 28px, 28px 28px, auto;
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* Shared elevated surfaces and accessible dark-theme utility overrides. */
+.bg-white { background-color: #151515 !important; }
+.bg-slate-50, .bg-slate-100 { background-color: #202020 !important; }
+.bg-slate-200 { background-color: #303030 !important; }
+.bg-blue-50 { background-color: #10213a !important; }
+.bg-orange-50 { background-color: #33200d !important; }
+.text-slate-950, .text-black { color: #f8fafc !important; }
+.text-slate-900, .text-slate-800 { color: #e5e7eb !important; }
+.text-slate-700, .text-slate-600, .text-slate-500 { color: #cbd5e1 !important; }
+.border-slate-200, .border-slate-300, .border-slate-400 { border-color: #4b5563 !important; }
+input, select, textarea { background-color: #0f0f0f !important; color: #f8fafc !important; border-color: #64748b !important; }
+input::placeholder, textarea::placeholder { color: #94a3b8 !important; }
+input:disabled { background-color: #292929 !important; color: #94a3b8 !important; }
+button, a { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }
+button:hover:not(:disabled), a:hover { transform: translateY(-1px); }
+section, article, details, table { box-shadow: 0 14px 35px rgba(0, 0, 0, 0.33); }
+
+.panel {
+  border: 1px solid #3f3f46;
+  background: linear-gradient(145deg, rgba(39, 39, 42, 0.95), rgba(18, 18, 18, 0.97));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38);
+}
+
+.field {
+  width: 100%;
+  border: 1px solid #52525b;
+  border-radius: 0.375rem;
+  background: #101010;
+  color: #f4f4f5;
+  outline: none;
+}
+
+.field:focus { border-color: #f97316; box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2); }
+.button-orange { border-radius: 0.375rem; background: #ea580c; color: white; }
+.button-orange:hover { background: #f97316; }
+.button-secondary { border: 1px solid #52525b; border-radius: 0.375rem; background: #18181b; color: #e4e4e7; }
+.button-secondary:hover { border-color: #a1a1aa; background: #27272a; }
+details { align-self: start; }
+.gym-exercise-card { border: 1px solid #303030; background: linear-gradient(145deg, #262626, #1d1d1d); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34); }
+
+/* The task settings are intentionally one column so an opened panel never stretches a closed neighbour. */
+main > .mt-6.grid.gap-4 > details { grid-column: 1 / -1; }
+
+/* Keep the daily controls and summary compact and horizontal on normal desktop widths. */
+main > .mt-8.flex { flex-wrap: nowrap; }
+main > section.mt-6.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+main > .mt-8.flex form { display: flex; flex: 0 0 auto; }
+main > .mt-8.flex .field { width: auto; }
+
+@media (max-width: 640px) {
+  main > .mt-8.flex { flex-wrap: wrap; }
+  main > section.mt-6.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Gym date navigation keeps its date field and submit button together. */
+main > .mt-7.flex form { display: flex; align-items: center; gap: 0.5rem; }
+main > .mt-7.flex form .field { width: auto; }

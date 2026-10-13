@@ -1,0 +1,14 @@
+"use client";
+
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useActionState, useState } from "react";
+import { deleteExercise, saveExercise, type GymFormState } from "@/app/gym/actions";
+
+type Exercise = { id: string; name: string; muscleGroup: string; trackingMode: "weight_reps" | "duration" };
+const initial: GymFormState = {};
+
+export function ExerciseManager({ exercises }: { exercises: Exercise[] }) {
+  const [editing, setEditing] = useState<Exercise | null>(null);
+  const [state, action, pending] = useActionState(saveExercise, initial);
+  return <section className="panel mt-8 rounded-xl p-5"><h2 className="text-xl font-semibold text-white">Manage exercise library</h2><p className="mt-1 text-sm text-zinc-400">Add your own exercises, update their details, or delete unused exercises.</p><form action={action} className="mt-5 grid gap-3 sm:grid-cols-4"><input name="id" type="hidden" value={editing?.id ?? ""} /><input className="field px-3 py-2" defaultValue={editing?.name ?? ""} key={`name-${editing?.id ?? "new"}`} name="name" placeholder="Exercise name" required /><input className="field px-3 py-2" defaultValue={editing?.muscleGroup ?? ""} key={`group-${editing?.id ?? "new"}`} name="muscleGroup" placeholder="Muscle group" required /><select className="field px-3 py-2" defaultValue={editing?.trackingMode ?? "weight_reps"} key={`mode-${editing?.id ?? "new"}`} name="trackingMode"><option value="weight_reps">kg + reps</option><option value="duration">mm:ss</option></select><div className="flex gap-2"><button className="button-orange inline-flex items-center gap-2 px-3 py-2 text-sm disabled:opacity-60" disabled={pending}><Plus size={15} /> {editing ? "Update" : "Add"}</button>{editing ? <button className="button-secondary px-3 py-2 text-sm" onClick={() => setEditing(null)} type="button">Cancel</button> : null}</div></form>{state.error ? <p className="mt-3 text-sm text-red-300">{state.error}</p> : null}{state.message ? <p className="mt-3 text-sm text-green-300">{state.message}</p> : null}<div className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{exercises.map((exercise) => <div className="flex items-center gap-2 rounded-lg border border-zinc-700 p-3" key={exercise.id}><div className="min-w-0 flex-1"><p className="truncate font-medium text-white">{exercise.name}</p><p className="text-xs text-zinc-500">{exercise.muscleGroup} · {exercise.trackingMode === "duration" ? "mm:ss" : "kg + reps"}</p></div><button aria-label={`Edit ${exercise.name}`} className="p-2 text-blue-300" onClick={() => setEditing(exercise)} type="button"><Pencil size={16} /></button><form action={deleteExercise}><input name="exerciseId" type="hidden" value={exercise.id} /><button aria-label={`Delete ${exercise.name}`} className="p-2 text-red-300"><Trash2 size={16} /></button></form></div>)}</div></section>;
+}
