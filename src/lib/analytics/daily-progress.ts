@@ -1,4 +1,4 @@
-import { calculateDailyScore, type ScoreableEntry, type ScoreableTask } from "@/lib/scoring/score";
+import { calculateDailyScore, type ScoreableEntry, type ScoreableTask } from "../scoring/score";
 
 export type DatedEntry = ScoreableEntry & { entryDate: string };
 export type ProgressPoint = { date: string; label: string; score: number; maximum: number; focusedMinutes: number };

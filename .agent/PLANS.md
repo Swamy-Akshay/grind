@@ -14,6 +14,22 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Status:
 
 ## Active
+### Phase 3.1 — daily score integrity and gym interaction refinement
+- Goal: ensure checkbox task completions contribute consistently to daily and charted scores, make date controls legible in the dark theme, and streamline gym logging, discovery, navigation, and calendar-based charts.
+- Scope: preserve the existing schema and workout history. Add no dependencies or new scoring rules. Cover daily checkbox values in all score projections; use contrast-safe native date inputs; add exercise text + muscle-group filtering; make set creation draft-first with selection-scoped edit/delete controls; replace button-like Gym page links with a proper text navigation bar; and generate complete scheduled date/week chart series rather than plotting only recorded rows.
+- Files to touch: daily page/analytics and tests; Gym analytics/tests, Gym pages/components, shared theme styling, and this plan.
+- Steps:
+  1. Carry `is_completed` through all daily score series and cover checkbox aggregation with a unit test.
+  2. Make calendar-picker icons visible on dark date fields.
+  3. Build reusable weekday/weekly gym chart series: monthly charts include Monday–Saturday dates; the yearly chart has the year’s weeks and month labels.
+  4. Add muscle-group-scoped text search to the exercise picker and routine builder.
+  5. Replace blank set rows with an exercise-level draft input plus Add set; show edit/delete controls only for the selected saved draft set.
+  6. Restyle Gym navigation as a persistent navigation bar rather than a collection of button-like links.
+  7. Run targeted tests, TypeScript, lint, and production build.
+- Verification: checkbox completions contribute to both daily score and chart points; date picker icon contrast is visible; zero-volume scheduled chart points remain visible; search applies within the selected muscle group; adding/editing/deleting sets preserves sequence and validation; all checks pass.
+- Risks / open questions: browser-native calendar icons have vendor-specific styling, so Firefox/Chromium both need safe `color-scheme` styling. The weekly graph will show ISO-like Monday-start buckets and monthly labels rather than inventing workout data.
+- Status: Implemented and locally verified: 17 tests, TypeScript, ESLint, and the production build pass.
+
 ### Phase 3 — gym workouts and strength progress (proposed)
 - Goal: build a dedicated, truthful gym tracker around the user’s January–September 2026 exercise library, preserving workout and set history and showing useful strength and consistency trends.
 - Scope: an editable exercise library; reusable workout templates/splits; fast per-set logging (weight, reps, optional RIR and notes); workout history; per-exercise trends; weekly set-volume by muscle group; and separate gym consistency metrics. The page will not alter the daily task score or the Career/Lifestyle analytics.
