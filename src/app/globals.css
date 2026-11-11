@@ -34,7 +34,7 @@ body {
 .border-slate-200, .border-slate-300, .border-slate-400 { border-color: #4b5563 !important; }
 input, select, textarea { background-color: #0f0f0f !important; color: #f8fafc !important; border-color: #64748b !important; }
 input[type="date"] { color-scheme: dark; }
-input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(1) brightness(1.6); opacity: 0.9; }
+input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(1) brightness(2) !important; opacity: 1; }
 input::placeholder, textarea::placeholder { color: #94a3b8 !important; }
 input:disabled { background-color: #292929 !important; color: #94a3b8 !important; }
 button, a { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }

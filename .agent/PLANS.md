@@ -14,6 +14,14 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Status:
 
 ## Active
+### Phase 3.2 — gym library and daily-workout persistence
+- Goal: improve exercise-library management and make the Today workout practical to revisit, while exposing day volume/PR context and placing date navigation in the Gym navbar.
+- Scope: searchable/filterable exercise management; group normalization (remove Forearms, merge rear-delt labels into Shoulders); selection-order preservation; retained set-entry defaults and temporary validation feedback; saved-workout reopening; daily volume/PR summaries; date control placement and contrast. No changes to past workout facts or scoring.
+- Database: a forward-only migration changes only `exercises.muscle_group` values, preserving IDs and all workout-set history.
+- Steps: normalize groups; add library filters; fix ordered selection and saved workout reload; refine Add set defaults/feedback; compute and display factual day metrics; move Gym date controls into navbar; verify.
+- Verification: apply migration; validate filters and muscle labels; verify a saved date reopens with its sets; selection order matches picking order; zero/default set behavior is clear; tests, TypeScript, lint, and build pass.
+- Status: Implemented and locally verified. Apply the group-normalization migration in Supabase before final live verification.
+
 ### Phase 3.1 — daily score integrity and gym interaction refinement
 - Goal: ensure checkbox task completions contribute consistently to daily and charted scores, make date controls legible in the dark theme, and streamline gym logging, discovery, navigation, and calendar-based charts.
 - Scope: preserve the existing schema and workout history. Add no dependencies or new scoring rules. Cover daily checkbox values in all score projections; use contrast-safe native date inputs; add exercise text + muscle-group filtering; make set creation draft-first with selection-scoped edit/delete controls; replace button-like Gym page links with a proper text navigation bar; and generate complete scheduled date/week chart series rather than plotting only recorded rows.
