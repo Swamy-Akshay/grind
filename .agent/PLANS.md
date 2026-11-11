@@ -14,6 +14,15 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Status:
 
 ## Active
+### Phase 3.3 — trustworthy gym performance analytics
+- Goal: add a deterministic calculation layer for per-exercise performance, primary-muscle logged sets, resistance volume, and explicit-schedule consistency without changing the Gym UI or stored workout history.
+- Scope: pure functions and tests only. Use exercise ID as the variation boundary; calculate eligible Epley e1RM, session comparisons, volume, primary-muscle classifications, weekly/14-day logged sets, and planned-date consistency. No charts, new visualizations, logger changes, or inferred workout schedule.
+- Files to touch: `src/lib/analytics/gym-progress.ts`, a centralized exercise-classification helper, their tests, and this plan. No migration is required.
+- Steps: inspect existing set schema and seed library; model pure workout-set facts; classify recognized exercise names with metadata fallback; add session and comparison calculations; add set/volume/consistency aggregations; cover required edge cases with unit tests; run full checks.
+- Verification: resistance-only e1RM eligibility; no cross-exercise comparisons; forearm classification independent of broad UI grouping; valid date-window aggregates; explicit-plan-only consistency; existing chart-series tests remain passing.
+- Known limitations: RIR is null, working/warm-up set type does not exist, no body measurements or training schedule exist, and assisted/bodyweight sets cannot produce reliable e1RM. These remain deliberately excluded.
+- Status: Complete. TypeScript and lint pass. The production compilation succeeds; its sandboxed final worker and Vitest's child-process startup are blocked by Windows `spawn EPERM`, so the test suite must be run in the normal local shell before release.
+
 ### Phase 3.2 — gym library and daily-workout persistence
 - Goal: improve exercise-library management and make the Today workout practical to revisit, while exposing day volume/PR context and placing date navigation in the Gym navbar.
 - Scope: searchable/filterable exercise management; group normalization (remove Forearms, merge rear-delt labels into Shoulders); selection-order preservation; retained set-entry defaults and temporary validation feedback; saved-workout reopening; daily volume/PR summaries; date control placement and contrast. No changes to past workout facts or scoring.

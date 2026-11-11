@@ -1,3 +1,5 @@
+import { classifyExercise, type ExerciseMetadata } from "./exercise-classification";
+
 export type WorkoutProgressInput = { performedOn: string; setCount: number; volumeKg: number };
 export type WorkoutProgressPoint = { date: string; label: string; workouts: number; sets: number; volumeKg: number; month?: string; axisLabel?: string };
 
@@ -78,6 +80,153 @@ export function buildYearlyWorkoutSeries(workouts: WorkoutProgressInput[], year:
 }
 
 export function estimatedOneRepMax(weightKg: number, reps: number) {
-  if (weightKg < 0 || reps < 1) throw new Error("Weight and reps must be positive.");
+  if (weightKg <= 0 || reps < 1) throw new Error("Weight and reps must be positive.");
   return Math.round(weightKg * (1 + reps / 30) * 100) / 100;
+}
+
+export type ExerciseSetRecord = {
+  workoutId: string;
+  performedOn: string;
+  exercise: ExerciseMetadata;
+  setNumber: number;
+  weightKg: number | null;
+  reps: number | null;
+  durationSeconds: number | null;
+};
+
+export type ExerciseSessionPerformance = {
+  workoutId: string;
+  performedOn: string;
+  exerciseId: string;
+  exerciseName: string;
+  trackingMode: ExerciseMetadata["trackingMode"];
+  totalRecordedSets: number;
+  totalRepetitions: number;
+  maximumRecordedLoad: number | null;
+  bestRepsByLoad: Array<{ weightKg: number; reps: number }>;
+  resistanceVolumeLoad: number;
+  estimatedOneRepMax: number | null;
+};
+
+export type SessionComparison = ExerciseSessionPerformance & {
+  previousEstimatedOneRepMax: number | null;
+  estimatedOneRepMaxChange: number | null;
+  estimatedOneRepMaxPercentChange: number | null;
+  repetitionChangeAtSameLoad: number | null;
+  loadChangeAtSameRepetitions: number | null;
+  allTimeBestEstimatedOneRepMax: number | null;
+  isNewPerformanceBest: boolean;
+};
+
+const isFiniteNumber = (value: number | null): value is number => typeof value === "number" && Number.isFinite(value);
+type ValidResistanceSet = ExerciseSetRecord & { weightKg: number; reps: number; durationSeconds: null };
+const isResistanceSet = (set: ExerciseSetRecord): set is ValidResistanceSet => set.exercise.trackingMode === "weight_reps" && set.durationSeconds === null && isFiniteNumber(set.weightKg) && set.weightKg > 0 && isFiniteNumber(set.reps) && set.reps > 0;
+const isEligibleE1RmSet = (set: ExerciseSetRecord): set is ValidResistanceSet => isResistanceSet(set) && set.reps <= 12;
+const roundedValue = (value: number) => Math.round(value * 100) / 100;
+
+/** Returns null rather than an invented maximum for bodyweight, assisted, timed, or invalid sets. */
+export function estimateSetOneRepMax(set: ExerciseSetRecord): number | null {
+  return isEligibleE1RmSet(set) ? estimatedOneRepMax(set.weightKg, set.reps) : null;
+}
+
+export function calculateResistanceVolumeLoad(sets: ExerciseSetRecord[]): number {
+  return roundedValue(sets.filter(isResistanceSet).reduce((total, set) => total + set.weightKg * set.reps, 0));
+}
+
+export function buildExerciseSessionPerformances(records: ExerciseSetRecord[]): ExerciseSessionPerformance[] {
+  const groups = new Map<string, ExerciseSetRecord[]>();
+  for (const record of records) {
+    if (!record.workoutId || !record.performedOn || !record.exercise.id) continue;
+    const key = `${record.exercise.id}:${record.workoutId}`;
+    groups.set(key, [...(groups.get(key) ?? []), record]);
+  }
+  return [...groups.values()].map((sets) => {
+    const first = sets[0];
+    const validResistance = sets.filter(isResistanceSet);
+    const bestReps = new Map<number, number>();
+    for (const set of validResistance) bestReps.set(set.weightKg, Math.max(bestReps.get(set.weightKg) ?? 0, set.reps));
+    const estimates = sets.map(estimateSetOneRepMax).filter(isFiniteNumber);
+    return {
+      workoutId: first.workoutId,
+      performedOn: first.performedOn,
+      exerciseId: first.exercise.id,
+      exerciseName: first.exercise.name,
+      trackingMode: first.exercise.trackingMode,
+      totalRecordedSets: sets.length,
+      totalRepetitions: sets.reduce((total, set) => total + (isFiniteNumber(set.reps) && set.reps > 0 ? set.reps : 0), 0),
+      maximumRecordedLoad: validResistance.length ? Math.max(...validResistance.map((set) => set.weightKg)) : null,
+      bestRepsByLoad: [...bestReps.entries()].sort(([left], [right]) => left - right).map(([weightKg, reps]) => ({ weightKg, reps })),
+      resistanceVolumeLoad: calculateResistanceVolumeLoad(sets),
+      estimatedOneRepMax: estimates.length ? Math.max(...estimates) : null,
+    };
+  }).sort((left, right) => left.performedOn.localeCompare(right.performedOn) || left.workoutId.localeCompare(right.workoutId));
+}
+
+function bestRepsAtMatchingLoad(current: ExerciseSessionPerformance, previous: ExerciseSessionPerformance) {
+  const previousByLoad = new Map(previous.bestRepsByLoad.map((point) => [point.weightKg, point.reps]));
+  const differences = current.bestRepsByLoad.flatMap((point) => previousByLoad.has(point.weightKg) ? [point.reps - (previousByLoad.get(point.weightKg) ?? 0)] : []);
+  return differences.length ? Math.max(...differences) : null;
+}
+
+function loadAtMatchingRepetitions(current: ExerciseSessionPerformance, previous: ExerciseSessionPerformance) {
+  const loadsForReps = (session: ExerciseSessionPerformance) => {
+    const values = new Map<number, number>();
+    for (const point of session.bestRepsByLoad) values.set(point.reps, Math.max(values.get(point.reps) ?? -Infinity, point.weightKg));
+    return values;
+  };
+  const previousByReps = loadsForReps(previous); const currentByReps = loadsForReps(current);
+  const differences = [...currentByReps.entries()].flatMap(([reps, load]) => previousByReps.has(reps) ? [load - (previousByReps.get(reps) ?? 0)] : []);
+  return differences.length ? Math.max(...differences) : null;
+}
+
+export function compareExerciseSessions(records: ExerciseSetRecord[]): SessionComparison[] {
+  const sessions = buildExerciseSessionPerformances(records);
+  const output: SessionComparison[] = [];
+  const byExercise = new Map<string, ExerciseSessionPerformance[]>();
+  for (const session of sessions) {
+    byExercise.set(session.exerciseId, [...(byExercise.get(session.exerciseId) ?? []), session]);
+  }
+  for (const exerciseSessions of byExercise.values()) {
+    exerciseSessions.sort((left, right) => left.performedOn.localeCompare(right.performedOn) || left.workoutId.localeCompare(right.workoutId));
+    let best = -Infinity;
+    for (let index = 0; index < exerciseSessions.length; index += 1) {
+      const current = exerciseSessions[index]; const previous = exerciseSessions[index - 1];
+      const currentEstimate = current.estimatedOneRepMax;
+      const previousEstimate = previous?.estimatedOneRepMax ?? null;
+      const change = currentEstimate !== null && previousEstimate !== null ? roundedValue(currentEstimate - previousEstimate) : null;
+      const percentage = change !== null && previousEstimate !== null && previousEstimate !== 0 ? roundedValue((change / previousEstimate) * 100) : null;
+      const newBest = currentEstimate !== null && currentEstimate > best;
+      if (currentEstimate !== null) best = Math.max(best, currentEstimate);
+      output.push({ ...current, previousEstimatedOneRepMax: previousEstimate, estimatedOneRepMaxChange: change, estimatedOneRepMaxPercentChange: percentage, repetitionChangeAtSameLoad: previous ? bestRepsAtMatchingLoad(current, previous) : null, loadChangeAtSameRepetitions: previous ? loadAtMatchingRepetitions(current, previous) : null, allTimeBestEstimatedOneRepMax: Number.isFinite(best) ? best : null, isNewPerformanceBest: newBest });
+    }
+  }
+  return output.sort((left, right) => left.performedOn.localeCompare(right.performedOn) || left.workoutId.localeCompare(right.workoutId));
+}
+
+export type LoggedSetSummary = { byPrimaryMuscle: Record<string, number>; byExercise: Record<string, number>; totalLoggedSets: number };
+
+export function summarizeLoggedSets(records: ExerciseSetRecord[], startDate: string, endDate: string): LoggedSetSummary {
+  const byPrimaryMuscle: Record<string, number> = {}; const byExercise: Record<string, number> = {};
+  for (const record of records) {
+    if (!record.performedOn || record.performedOn < startDate || record.performedOn > endDate) continue;
+    const primary = classifyExercise(record.exercise).primary;
+    byPrimaryMuscle[primary] = (byPrimaryMuscle[primary] ?? 0) + 1;
+    byExercise[record.exercise.id] = (byExercise[record.exercise.id] ?? 0) + 1;
+  }
+  return { byPrimaryMuscle, byExercise, totalLoggedSets: Object.values(byExercise).reduce((total, count) => total + count, 0) };
+}
+
+function shiftCalendarDate(date: string, days: number) { const value = new Date(`${date}T12:00:00Z`); value.setUTCDate(value.getUTCDate() + days); return value.toISOString().slice(0, 10); }
+
+export function buildLoggedSetWindows(records: ExerciseSetRecord[], endDate: string) {
+  return { weekly: summarizeLoggedSets(records, shiftCalendarDate(endDate, -6), endDate), fourteenDay: summarizeLoggedSets(records, shiftCalendarDate(endDate, -13), endDate) };
+}
+
+export type ConsistencyResult = { plannedSessions: number; completedPlannedSessions: number; consistencyPercent: number };
+
+/** Completed dates outside the explicit plan are intentionally excluded from this metric. */
+export function calculateWorkoutConsistency(plannedDates: string[], completedDates: string[]): ConsistencyResult {
+  const planned = new Set(plannedDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+  const completed = new Set(completedDates.filter((date) => planned.has(date)));
+  return { plannedSessions: planned.size, completedPlannedSessions: completed.size, consistencyPercent: planned.size ? roundedValue((completed.size / planned.size) * 100) : 0 };
 }
