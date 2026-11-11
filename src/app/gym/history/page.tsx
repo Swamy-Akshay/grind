@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import { deleteWorkout } from "@/app/gym/actions";
 import { GymNav } from "@/components/gym/gym-nav";
+import { GymPageGuide } from "@/components/gym/page-guide";
 import { createClient } from "@/lib/supabase/server";
 
 type Exercise = { name: string };
@@ -27,5 +28,5 @@ export default async function GymHistoryPage() {
       byExercise.set(name, group);
     }
     return <section className="gym-exercise-card rounded-xl p-5" key={workout.id}><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold tracking-wider text-zinc-400">{workout.performed_on}</p><h2 className="mt-1 font-semibold text-white">{byExercise.size} exercise{byExercise.size === 1 ? "" : "s"} · {workout.workout_sets.length} sets</h2></div><div className="flex gap-2"><Link className="button-secondary inline-flex items-center gap-2 px-3 py-2 text-sm" href={`/gym/history/${workout.id}`}><Pencil size={15} /> Edit</Link><form action={deleteWorkout}><input name="workoutId" type="hidden" value={workout.id} /><button aria-label={`Delete workout on ${workout.performed_on}`} className="rounded-md bg-red-950 px-3 py-2 text-red-200 hover:bg-red-900"><Trash2 size={16} /></button></form></div></div><div className="mt-5 space-y-4">{[...byExercise.values()].map((group) => <div className="border-t border-zinc-700 pt-3" key={group.name}><h3 className="font-medium text-white">{group.name}</h3><div className="mt-2 space-y-1">{group.sets.sort((a, b) => a.set_number - b.set_number).map((set) => <div className="flex text-sm" key={set.id}><span className="w-16 text-zinc-400">Set {set.set_number}</span><span className="text-zinc-200">{displaySet(set)}</span></div>)}</div></div>)}</div></section>;
-  })}{!workouts.length ? <p className="panel rounded-xl p-8 text-zinc-400">No completed workout sessions yet.</p> : null}</div></main>;
+  })}{!workouts.length ? <p className="panel rounded-xl p-8 text-zinc-400">No completed workout sessions yet.</p> : null}</div><GymPageGuide page="history" /></main>;
 }

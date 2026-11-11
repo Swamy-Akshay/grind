@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMonthlyWorkoutSeries, buildWorkoutProgressSeries, buildYearlyWorkoutSeries, estimatedOneRepMax } from "./gym-progress";
+import { buildMonthlyWorkoutSeries, buildWorkingWeekSeries, buildWorkoutProgressSeries, buildYearlyWorkoutSeries, estimatedOneRepMax } from "./gym-progress";
 
 describe("gym progress", () => {
   it("groups completed workout facts by date", () => {
@@ -18,5 +18,11 @@ describe("gym progress", () => {
     expect(series).toHaveLength(52);
     expect(series[51].volumeKg).toBe(100);
     expect(new Set(series.map((point) => point.month)).size).toBe(12);
+    expect(series.filter((point) => point.axisLabel).map((point) => point.axisLabel)).toHaveLength(12);
+  });
+  it("includes Monday through Saturday for the selected working week", () => {
+    const series = buildWorkingWeekSeries([{ performedOn: "2026-10-03", setCount: 2, volumeKg: 500 }], "2026-10-03");
+    expect(series.map((point) => point.date)).toEqual(["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"]);
+    expect(series[5].volumeKg).toBe(500);
   });
 });

@@ -20,7 +20,7 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Database: a forward-only migration changes only `exercises.muscle_group` values, preserving IDs and all workout-set history.
 - Steps: normalize groups; add library filters; fix ordered selection and saved workout reload; refine Add set defaults/feedback; compute and display factual day metrics; move Gym date controls into navbar; verify.
 - Verification: apply migration; validate filters and muscle labels; verify a saved date reopens with its sets; selection order matches picking order; zero/default set behavior is clear; tests, TypeScript, lint, and build pass.
-- Status: Implemented and locally verified. Apply the group-normalization migration in Supabase before final live verification.
+- Status: Implemented and locally verified: 18 tests, TypeScript, ESLint, and the production build pass. Apply the group-normalization migration in Supabase before final live verification.
 
 ### Phase 3.1 — daily score integrity and gym interaction refinement
 - Goal: ensure checkbox task completions contribute consistently to daily and charted scores, make date controls legible in the dark theme, and streamline gym logging, discovery, navigation, and calendar-based charts.

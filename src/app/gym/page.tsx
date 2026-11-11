@@ -4,7 +4,7 @@ import { GymNav } from "@/components/gym/gym-nav";
 import { GymPageGuide } from "@/components/gym/page-guide";
 import { WorkoutLogger, type DraftSet } from "@/components/gym/workout-logger";
 import { WorkoutVolumeChart } from "@/components/gym/workout-volume-chart";
-import { buildWorkoutProgressSeries } from "@/lib/analytics/gym-progress";
+import { buildWorkingWeekSeries } from "@/lib/analytics/gym-progress";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { searchParams: Promise<{ date?: string; routine?: string; add?: string }> };
@@ -35,7 +35,7 @@ export default async function GymPage({ searchParams }: Props) {
   const selected = ids.flatMap((id) => { const item = addedById.get(id); return item ? [{ exerciseId: item.id, name: item.name, trackingMode: item.tracking_mode as "weight_reps" | "duration" }] : []; });
   const exercises = [...fromSaved, ...fromRoutine, ...selected].filter((item, index, all) => all.findIndex((other) => other.exerciseId === item.exerciseId) === index);
   const initialSets: DraftSet[] = savedSets.flatMap((set) => { const exercise = one(set.exercises); return exercise ? [{ exerciseId: exercise.id, setNumber: set.set_number, trackingMode: exercise.tracking_mode, weightKg: String(set.weight_kg ?? 0), reps: String(set.reps ?? 0), duration: set.duration_seconds === null ? "" : `${Math.floor(set.duration_seconds / 60)}:${String(set.duration_seconds % 60).padStart(2, "0")}` }] : []; });
-  const series = buildWorkoutProgressSeries((weekly ?? []).map((workout) => ({ performedOn: workout.performed_on, setCount: workout.workout_sets.length, volumeKg: workout.workout_sets.reduce((sum, set) => sum + Number(set.weight_kg ?? 0) * Number(set.reps ?? 0), 0) })));
+  const series = buildWorkingWeekSeries((weekly ?? []).map((workout) => ({ performedOn: workout.performed_on, setCount: workout.workout_sets.length, volumeKg: workout.workout_sets.reduce((sum, set) => sum + Number(set.weight_kg ?? 0) * Number(set.reps ?? 0), 0) })), date);
   const volume = savedSets.reduce((sum, set) => sum + Number(set.weight_kg ?? 0) * Number(set.reps ?? 0), 0);
   const priorMax = new Map<string, number>(); for (const workout of priorWorkouts ?? []) for (const set of workout.workout_sets) priorMax.set(set.exercise_id, Math.max(priorMax.get(set.exercise_id) ?? -Infinity, Number(set.weight_kg ?? -Infinity)));
   const todayMax = new Map<string, number>(); for (const set of savedSets) todayMax.set(set.exercise_id, Math.max(todayMax.get(set.exercise_id) ?? -Infinity, Number(set.weight_kg ?? -Infinity)));
