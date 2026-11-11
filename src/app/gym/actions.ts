@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { workoutSubmissionSchema } from "@/lib/validation/gym";
+import { trainingScheduleSchema, workoutSubmissionSchema } from "@/lib/validation/gym";
 
 export type GymFormState = { error?: string; message?: string };
 
@@ -63,6 +63,19 @@ export async function saveExercise(_: GymFormState, formData: FormData): Promise
 
 export async function deleteExercise(formData: FormData) { const id = formData.get("exerciseId"); if (typeof id !== "string") return; const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return; const { error } = await supabase.from("exercises").delete().eq("id", id).eq("user_id", user.id); if (error) return; revalidatePath("/gym/exercises"); revalidatePath("/gym/routines"); }
 
+export async function saveTrainingSchedule(_: GymFormState, formData: FormData): Promise<GymFormState> {
+  const effectiveOn = String(formData.get("effectiveOn") ?? "");
+  const plannedWeekdays = formData.getAll("weekdays").map(Number);
+  const parsed = trainingScheduleSchema.safeParse({ effectiveOn, plannedWeekdays });
+  if (!parsed.success) return { error: "Choose at least one valid training day." };
+  const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Please sign in again." };
+  const { error } = await supabase.from("training_schedules").upsert({ user_id: user.id, effective_on: parsed.data.effectiveOn, planned_weekdays: parsed.data.plannedWeekdays }, { onConflict: "user_id,effective_on" });
+  if (error) return { error: "Unable to save training schedule." };
+  revalidatePath("/gym/progress");
+  return { message: "Training schedule saved from its effective date." };
+}
+
 export async function saveWorkout(_: GymFormState, formData: FormData): Promise<GymFormState> {
   const rawSets = formData.get("sets");
   if (typeof rawSets !== "string") return { error: "Workout sets are missing." };
@@ -71,6 +84,8 @@ export async function saveWorkout(_: GymFormState, formData: FormData): Promise<
   const templateId = formData.get("templateId"); const workoutId = formData.get("workoutId");
   const parsed = workoutSubmissionSchema.safeParse({ templateId: typeof templateId === "string" && templateId ? templateId : null, performedOn: formData.get("performedOn"), notes: formData.get("notes") ?? "", sets });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the workout values." };
+  const updatingExistingWorkout = typeof workoutId === "string" && Boolean(workoutId);
+  if (!updatingExistingWorkout && parsed.data.sets.some((set) => set.trackingMode === "weight_reps" && set.setType === null)) return { error: "Choose Warm-up or Working for each resistance set." };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Please sign in again." };
@@ -83,7 +98,7 @@ export async function saveWorkout(_: GymFormState, formData: FormData): Promise<
     const result = await supabase.from("workouts").update({ performed_on: parsed.data.performedOn, template_id: parsed.data.templateId, completed_at: new Date().toISOString() }).eq("id", existing.id).eq("user_id", user.id).select("id").single(); workout = result.data; workoutError = result.error;
   } else { const result = await supabase.from("workouts").insert({ user_id: user.id, template_id: parsed.data.templateId, performed_on: parsed.data.performedOn, completed_at: new Date().toISOString() }).select("id").single(); workout = result.data; workoutError = result.error; }
   if (workoutError || !workout) return { error: "Unable to save the workout." };
-  const { error: setsError } = await supabase.from("workout_sets").insert(parsed.data.sets.map((set) => ({ user_id: user.id, workout_id: workout.id, exercise_id: set.exerciseId, set_number: set.setNumber, weight_kg: set.weightKg, reps: set.reps, duration_seconds: set.durationSeconds, rir: set.rir })));
+  const { error: setsError } = await supabase.from("workout_sets").insert(parsed.data.sets.map((set) => ({ user_id: user.id, workout_id: workout.id, exercise_id: set.exerciseId, set_number: set.setNumber, weight_kg: set.weightKg, reps: set.reps, duration_seconds: set.durationSeconds, rir: set.rir, set_type: set.setType })));
   if (setsError) { await supabase.from("workouts").delete().eq("id", workout.id).eq("user_id", user.id); return { error: "Unable to save workout sets." }; }
   revalidatePath("/gym"); revalidatePath("/gym/history"); revalidatePath("/gym/progress");
   return { message: typeof workoutId === "string" && workoutId ? "Workout updated." : "Workout saved to your history." };

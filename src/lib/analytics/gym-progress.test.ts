@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildExerciseSessionPerformances, buildLoggedSetWindows, buildMonthlyWorkoutSeries, buildWorkingWeekSeries, buildWorkoutProgressSeries, buildYearlyWorkoutSeries, calculateResistanceVolumeLoad, calculateWorkoutConsistency, compareExerciseSessions, estimateSetOneRepMax, estimatedOneRepMax, summarizeLoggedSets, type ExerciseSetRecord } from "./gym-progress";
+import { buildExerciseSessionPerformances, buildLoggedSetWindows, buildMonthlyWorkoutSeries, buildPlannedWorkoutDates, buildWorkingSetWindows, buildWorkingWeekSeries, buildWorkoutProgressSeries, buildYearlyWorkoutSeries, calculateResistanceVolumeLoad, calculateWorkoutConsistency, compareExerciseSessions, estimateSetOneRepMax, estimatedOneRepMax, summarizeLoggedSets, type ExerciseSetRecord } from "./gym-progress";
 import { classifyExercise } from "./exercise-classification";
 
 const chest = { id: "bench", name: "Incline Barbell Bench Press", muscleGroup: "Chest", trackingMode: "weight_reps" as const };
@@ -34,6 +34,10 @@ describe("exercise performance", () => {
   it("excludes duration, zero-load, assisted, and invalid repetitions from resistance volume", () => {
     expect(calculateResistanceVolumeLoad([set(), set({ weightKg: 0 }), set({ weightKg: -20 }), set({ reps: 0 }), set({ exercise: plank, weightKg: null, reps: null, durationSeconds: 60 })])).toBe(500);
   });
+  it("excludes warm-ups from performance estimates while retaining legacy data", () => {
+    const sessions = buildExerciseSessionPerformances([set({ setType: "warmup", weightKg: 120, reps: 5 }), set({ setNumber: 2, setType: "working", weightKg: 100, reps: 5 }), set({ setNumber: 3, setType: null, weightKg: 90, reps: 5 })]);
+    expect(sessions[0]).toMatchObject({ maximumRecordedLoad: 100, resistanceVolumeLoad: 1550, estimatedOneRepMax: 116.67, hasUnclassifiedResistanceSets: true });
+  });
   it("groups sessions by exact exercise ID and workout, never by muscle group", () => {
     const sessions = buildExerciseSessionPerformances([set(), set({ setNumber: 2, reps: 8 }), set({ workoutId: "workout-2", exercise: biceps, weightKg: 20, reps: 10 })]);
     const bench = sessions.find((session) => session.exerciseId === "bench");
@@ -65,9 +69,16 @@ describe("muscle and consistency analytics", () => {
     const windows = buildLoggedSetWindows([set({ performedOn: "2026-10-01" }), set({ performedOn: "2026-10-08", setNumber: 2 }), set({ performedOn: "2026-10-14", setNumber: 3 })], "2026-10-14");
     expect(windows.weekly.totalLoggedSets).toBe(2); expect(windows.fourteenDay.totalLoggedSets).toBe(3);
   });
+  it("counts only explicitly working sets in working-set windows", () => {
+    const windows = buildWorkingSetWindows([set({ setType: "working" }), set({ setNumber: 2, setType: "warmup" }), set({ setNumber: 3, setType: null })], "2026-10-01");
+    expect(windows.weekly.totalLoggedSets).toBe(1);
+  });
   it("uses explicit planned dates only for consistency and handles no plan safely", () => {
     expect(calculateWorkoutConsistency(["2026-10-01", "2026-10-03", "2026-10-05"], ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-03"])).toEqual({ plannedSessions: 3, completedPlannedSessions: 2, consistencyPercent: 66.67 });
     expect(calculateWorkoutConsistency([], ["2026-10-01"])).toEqual({ plannedSessions: 0, completedPlannedSessions: 0, consistencyPercent: 0 });
+  });
+  it("uses effective dates when expanding an explicitly saved schedule", () => {
+    expect(buildPlannedWorkoutDates([{ effectiveOn: "2026-10-01", plannedWeekdays: [1, 3, 5] }, { effectiveOn: "2026-10-08", plannedWeekdays: [2, 4] }], "2026-10-05", "2026-10-11")).toEqual(["2026-10-05", "2026-10-07", "2026-10-08"]);
   });
   it("handles empty history and missing workout dates without fabricating sets", () => {
     expect(buildExerciseSessionPerformances([])).toEqual([]);

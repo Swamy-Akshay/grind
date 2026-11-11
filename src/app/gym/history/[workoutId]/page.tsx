@@ -3,7 +3,7 @@ import { WorkoutLogger, type DraftSet } from "@/components/gym/workout-logger";
 import { createClient } from "@/lib/supabase/server";
 
 type Exercise = { id: string; name: string; tracking_mode: "weight_reps" | "duration" };
-type SetRow = { set_number: number; weight_kg: number | null; reps: number | null; duration_seconds: number | null; exercises: Exercise | Exercise[] | null };
+type SetRow = { set_number: number; weight_kg: number | null; reps: number | null; duration_seconds: number | null; rir: number | null; set_type: "warmup" | "working" | null; exercises: Exercise | Exercise[] | null };
 
 function oneExercise(relation: SetRow["exercises"]): Exercise | null {
   return Array.isArray(relation) ? relation[0] ?? null : relation;
@@ -15,7 +15,7 @@ export default async function EditWorkoutPage({ params }: { params: Promise<{ wo
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: workout } = await supabase.from("workouts").select("id,performed_on,template_id,workout_sets(set_number,weight_kg,reps,duration_seconds,exercises(id,name,tracking_mode))").eq("id", workoutId).eq("user_id", user.id).single();
+  const { data: workout } = await supabase.from("workouts").select("id,performed_on,template_id,workout_sets(set_number,weight_kg,reps,duration_seconds,rir,set_type,exercises(id,name,tracking_mode))").eq("id", workoutId).eq("user_id", user.id).single();
   if (!workout) return <main className="p-10 text-white">Workout not found.</main>;
 
   const rows = workout.workout_sets as unknown as SetRow[];
@@ -32,6 +32,8 @@ export default async function EditWorkoutPage({ params }: { params: Promise<{ wo
       weightKg: row.weight_kg === null ? "" : String(row.weight_kg),
       reps: row.reps === null ? "" : String(row.reps),
       duration: row.duration_seconds === null ? "" : `${Math.floor(row.duration_seconds / 60)}:${String(row.duration_seconds % 60).padStart(2, "0")}`,
+      rir: row.rir === null ? "" : String(row.rir),
+      setType: row.set_type,
     }] : [];
   });
 

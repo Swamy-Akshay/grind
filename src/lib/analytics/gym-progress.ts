@@ -92,6 +92,7 @@ export type ExerciseSetRecord = {
   weightKg: number | null;
   reps: number | null;
   durationSeconds: number | null;
+  setType?: "warmup" | "working" | null;
 };
 
 export type ExerciseSessionPerformance = {
@@ -106,6 +107,7 @@ export type ExerciseSessionPerformance = {
   bestRepsByLoad: Array<{ weightKg: number; reps: number }>;
   resistanceVolumeLoad: number;
   estimatedOneRepMax: number | null;
+  hasUnclassifiedResistanceSets: boolean;
 };
 
 export type SessionComparison = ExerciseSessionPerformance & {
@@ -122,11 +124,12 @@ const isFiniteNumber = (value: number | null): value is number => typeof value =
 type ValidResistanceSet = ExerciseSetRecord & { weightKg: number; reps: number; durationSeconds: null };
 const isResistanceSet = (set: ExerciseSetRecord): set is ValidResistanceSet => set.exercise.trackingMode === "weight_reps" && set.durationSeconds === null && isFiniteNumber(set.weightKg) && set.weightKg > 0 && isFiniteNumber(set.reps) && set.reps > 0;
 const isEligibleE1RmSet = (set: ExerciseSetRecord): set is ValidResistanceSet => isResistanceSet(set) && set.reps <= 12;
+const isComparableResistanceSet = (set: ExerciseSetRecord): set is ValidResistanceSet => isEligibleE1RmSet(set) && set.setType !== "warmup";
 const roundedValue = (value: number) => Math.round(value * 100) / 100;
 
 /** Returns null rather than an invented maximum for bodyweight, assisted, timed, or invalid sets. */
 export function estimateSetOneRepMax(set: ExerciseSetRecord): number | null {
-  return isEligibleE1RmSet(set) ? estimatedOneRepMax(set.weightKg, set.reps) : null;
+  return isComparableResistanceSet(set) ? estimatedOneRepMax(set.weightKg, set.reps) : null;
 }
 
 export function calculateResistanceVolumeLoad(sets: ExerciseSetRecord[]): number {
@@ -142,7 +145,7 @@ export function buildExerciseSessionPerformances(records: ExerciseSetRecord[]): 
   }
   return [...groups.values()].map((sets) => {
     const first = sets[0];
-    const validResistance = sets.filter(isResistanceSet);
+    const validResistance = sets.filter(isResistanceSet).filter((set) => set.setType !== "warmup");
     const bestReps = new Map<number, number>();
     for (const set of validResistance) bestReps.set(set.weightKg, Math.max(bestReps.get(set.weightKg) ?? 0, set.reps));
     const estimates = sets.map(estimateSetOneRepMax).filter(isFiniteNumber);
@@ -158,6 +161,7 @@ export function buildExerciseSessionPerformances(records: ExerciseSetRecord[]): 
       bestRepsByLoad: [...bestReps.entries()].sort(([left], [right]) => left - right).map(([weightKg, reps]) => ({ weightKg, reps })),
       resistanceVolumeLoad: calculateResistanceVolumeLoad(sets),
       estimatedOneRepMax: estimates.length ? Math.max(...estimates) : null,
+      hasUnclassifiedResistanceSets: sets.some((set) => isResistanceSet(set) && set.setType === null),
     };
   }).sort((left, right) => left.performedOn.localeCompare(right.performedOn) || left.workoutId.localeCompare(right.workoutId));
 }
@@ -216,10 +220,19 @@ export function summarizeLoggedSets(records: ExerciseSetRecord[], startDate: str
   return { byPrimaryMuscle, byExercise, totalLoggedSets: Object.values(byExercise).reduce((total, count) => total + count, 0) };
 }
 
+/** Working-set-only aggregation. Legacy unclassified records are deliberately excluded. */
+export function summarizeWorkingSets(records: ExerciseSetRecord[], startDate: string, endDate: string): LoggedSetSummary {
+  return summarizeLoggedSets(records.filter((record) => record.setType === "working"), startDate, endDate);
+}
+
 function shiftCalendarDate(date: string, days: number) { const value = new Date(`${date}T12:00:00Z`); value.setUTCDate(value.getUTCDate() + days); return value.toISOString().slice(0, 10); }
 
 export function buildLoggedSetWindows(records: ExerciseSetRecord[], endDate: string) {
   return { weekly: summarizeLoggedSets(records, shiftCalendarDate(endDate, -6), endDate), fourteenDay: summarizeLoggedSets(records, shiftCalendarDate(endDate, -13), endDate) };
+}
+
+export function buildWorkingSetWindows(records: ExerciseSetRecord[], endDate: string) {
+  return { weekly: summarizeWorkingSets(records, shiftCalendarDate(endDate, -6), endDate), fourteenDay: summarizeWorkingSets(records, shiftCalendarDate(endDate, -13), endDate) };
 }
 
 export type ConsistencyResult = { plannedSessions: number; completedPlannedSessions: number; consistencyPercent: number };
@@ -229,4 +242,17 @@ export function calculateWorkoutConsistency(plannedDates: string[], completedDat
   const planned = new Set(plannedDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
   const completed = new Set(completedDates.filter((date) => planned.has(date)));
   return { plannedSessions: planned.size, completedPlannedSessions: completed.size, consistencyPercent: planned.size ? roundedValue((completed.size / planned.size) * 100) : 0 };
+}
+
+export type TrainingSchedule = { effectiveOn: string; plannedWeekdays: number[] };
+
+/** Expands saved, effective-dated schedules without inferring a user's training frequency. */
+export function buildPlannedWorkoutDates(schedules: TrainingSchedule[], startDate: string, endDate: string): string[] {
+  const validSchedules = schedules.filter((schedule) => /^\d{4}-\d{2}-\d{2}$/.test(schedule.effectiveOn)).sort((left, right) => left.effectiveOn.localeCompare(right.effectiveOn));
+  const dates: string[] = [];
+  for (let date = startDate; date <= endDate; date = shiftCalendarDate(date, 1)) {
+    const effective = validSchedules.filter((schedule) => schedule.effectiveOn <= date).at(-1);
+    if (effective?.plannedWeekdays.includes(new Date(`${date}T12:00:00Z`).getUTCDay())) dates.push(date);
+  }
+  return dates;
 }

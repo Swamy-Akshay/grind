@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type Props = { searchParams: Promise<{ date?: string; routine?: string; add?: string }> };
 type ExerciseRelation = { id: string; name: string; tracking_mode: "weight_reps" | "duration" } | { id: string; name: string; tracking_mode: "weight_reps" | "duration" }[] | null;
-type SetRow = { exercise_id: string; set_number: number; weight_kg: number | null; reps: number | null; duration_seconds: number | null; exercises: ExerciseRelation };
+type SetRow = { exercise_id: string; set_number: number; weight_kg: number | null; reps: number | null; duration_seconds: number | null; rir: number | null; set_type: "warmup" | "working" | null; exercises: ExerciseRelation };
 const pattern = /^\d{4}-\d{2}-\d{2}$/;
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const shift = (input: string, days: number) => { const value = new Date(`${input}T12:00:00`); value.setDate(value.getDate() + days); return value.toISOString().slice(0, 10); };
@@ -21,7 +21,7 @@ export default async function GymPage({ searchParams }: Props) {
   const [{ data: routines }, { data: weekly }, { data: dayWorkouts }, { data: priorWorkouts }] = await Promise.all([
     supabase.from("workout_templates").select("id,name").eq("user_id", user.id).eq("is_active", true).order("position"),
     supabase.from("workouts").select("performed_on,workout_sets(weight_kg,reps)").eq("user_id", user.id).gte("performed_on", shift(date, -6)).lte("performed_on", date),
-    supabase.from("workouts").select("id,template_id,completed_at,workout_sets(exercise_id,set_number,weight_kg,reps,duration_seconds,exercises(id,name,tracking_mode))").eq("user_id", user.id).eq("performed_on", date).order("completed_at", { ascending: false }).limit(1),
+    supabase.from("workouts").select("id,template_id,completed_at,workout_sets(exercise_id,set_number,weight_kg,reps,duration_seconds,rir,set_type,exercises(id,name,tracking_mode))").eq("user_id", user.id).eq("performed_on", date).order("completed_at", { ascending: false }).limit(1),
     supabase.from("workouts").select("workout_sets(exercise_id,weight_kg)").eq("user_id", user.id).lt("performed_on", date),
   ]);
   const saved = dayWorkouts?.[0]; const savedSets = (saved?.workout_sets ?? []) as unknown as SetRow[];
@@ -34,7 +34,7 @@ export default async function GymPage({ searchParams }: Props) {
   const fromSaved = savedSets.flatMap((set) => { const item = one(set.exercises); return item ? [{ exerciseId: item.id, name: item.name, trackingMode: item.tracking_mode }] : []; });
   const selected = ids.flatMap((id) => { const item = addedById.get(id); return item ? [{ exerciseId: item.id, name: item.name, trackingMode: item.tracking_mode as "weight_reps" | "duration" }] : []; });
   const exercises = [...fromSaved, ...fromRoutine, ...selected].filter((item, index, all) => all.findIndex((other) => other.exerciseId === item.exerciseId) === index);
-  const initialSets: DraftSet[] = savedSets.flatMap((set) => { const exercise = one(set.exercises); return exercise ? [{ exerciseId: exercise.id, setNumber: set.set_number, trackingMode: exercise.tracking_mode, weightKg: String(set.weight_kg ?? 0), reps: String(set.reps ?? 0), duration: set.duration_seconds === null ? "" : `${Math.floor(set.duration_seconds / 60)}:${String(set.duration_seconds % 60).padStart(2, "0")}` }] : []; });
+  const initialSets: DraftSet[] = savedSets.flatMap((set) => { const exercise = one(set.exercises); return exercise ? [{ exerciseId: exercise.id, setNumber: set.set_number, trackingMode: exercise.tracking_mode, weightKg: String(set.weight_kg ?? 0), reps: String(set.reps ?? 0), duration: set.duration_seconds === null ? "" : `${Math.floor(set.duration_seconds / 60)}:${String(set.duration_seconds % 60).padStart(2, "0")}`, rir: set.rir === null ? "" : String(set.rir), setType: set.set_type }] : []; });
   const series = buildWorkingWeekSeries((weekly ?? []).map((workout) => ({ performedOn: workout.performed_on, setCount: workout.workout_sets.length, volumeKg: workout.workout_sets.reduce((sum, set) => sum + Number(set.weight_kg ?? 0) * Number(set.reps ?? 0), 0) })), date);
   const volume = savedSets.reduce((sum, set) => sum + Number(set.weight_kg ?? 0) * Number(set.reps ?? 0), 0);
   const priorMax = new Map<string, number>(); for (const workout of priorWorkouts ?? []) for (const set of workout.workout_sets) priorMax.set(set.exercise_id, Math.max(priorMax.get(set.exercise_id) ?? -Infinity, Number(set.weight_kg ?? -Infinity)));

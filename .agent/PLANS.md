@@ -14,6 +14,15 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Status:
 
 ## Active
+### Phase 3.4 — gym analytics UI integration
+- Goal: record set classification and optional RIR, then present trustworthy exercise performance, working-set volume, and explicit-schedule consistency inside the existing Gym Progress page.
+- Scope: add a forward-only migration for nullable `set_type` and historical training schedules; validate/save set type and RIR; preserve legacy sets; query full user-owned history for exercise analytics; add focused progress controls/charts and concise guidance. Preserve existing theme, navigation, logger workflow, and total-volume charts.
+- Files to touch: gym migration, validation and actions, workout logger/history pages, Gym Progress page plus narrowly scoped supporting components, analytics helpers/tests, page guide, this plan.
+- Steps: inspect current schema/UI; add schema and schedule domain functions; update validation and write paths; integrate logger/history; add progress data retrieval/dashboard; add schedule control and guide; run tests/type/lint/build.
+- Verification: legacy set remains unclassified; newly logged resistance set saves Warm-up/Working and optional RIR; e1RM excludes warm-ups; working-set group totals are correct; schedule effective dates preserve old plans; current volume charts remain.
+- Known limitations: bodyweight/assisted/duration e1RM remains unavailable, RIR does not adjust e1RM, and no warm-up/working distinction exists in pre-migration history.
+- Status: Complete. Migration applied successfully in Supabase. TypeScript and lint pass; production compilation succeeds before the sandbox blocks its final worker, and Vitest remains blocked here by Windows `spawn EPERM`.
+
 ### Phase 3.3 — trustworthy gym performance analytics
 - Goal: add a deterministic calculation layer for per-exercise performance, primary-muscle logged sets, resistance volume, and explicit-schedule consistency without changing the Gym UI or stored workout history.
 - Scope: pure functions and tests only. Use exercise ID as the variation boundary; calculate eligible Epley e1RM, session comparisons, volume, primary-muscle classifications, weekly/14-day logged sets, and planned-date consistency. No charts, new visualizations, logger changes, or inferred workout schedule.
