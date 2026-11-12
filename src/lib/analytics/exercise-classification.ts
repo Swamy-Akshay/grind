@@ -14,7 +14,7 @@ export type MuscleGroup =
   | "Traps"
   | string;
 
-export type ExerciseMetadata = { id: string; name: string; muscleGroup: string; trackingMode: "weight_reps" | "duration" };
+export type ExerciseMetadata = { id: string; name: string; muscleGroup: string; secondaryMuscleGroup?: string | null; trackingMode: "weight_reps" | "duration" };
 export type ExerciseClassification = { primary: MuscleGroup; secondary: MuscleGroup[]; movementCategory?: string };
 
 const normalized = (value: string) => value.trim().toLowerCase();
@@ -26,6 +26,7 @@ const includesAny = (value: string, terms: string[]) => terms.some((term) => val
  * Unknown user exercises keep their stored group as the safe fallback.
  */
 export function classifyExercise(exercise: ExerciseMetadata): ExerciseClassification {
+  if (exercise.secondaryMuscleGroup !== undefined) return { primary: exercise.muscleGroup.trim() || "Unclassified", secondary: exercise.secondaryMuscleGroup ? [exercise.secondaryMuscleGroup] : [] };
   const name = normalized(exercise.name);
   if (includesAny(name, ["wrist curl", "wrist extension", "wrist roller", "grip strengthener", "reverse curl"])) return { primary: "Forearms", secondary: name.includes("reverse curl") ? ["Biceps"] : [], movementCategory: "Wrist / grip" };
   if (includesAny(name, ["calf raise", "tibialis"])) return { primary: "Calves", secondary: [], movementCategory: "Calf raise" };

@@ -14,6 +14,13 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Status:
 
 ## Active
+### Phase 3.6 — gym muscle targets and calendar analytics corrections
+- Goal: let users define optional secondary exercise muscles, correct calendar ordering in gym progress, and expand working-set time ranges.
+- Scope: nullable secondary exercise metadata, library management control, primary-only set aggregation, chronological volume chart data, schedule effective-date clarity, and working-set period dropdown. No redesign or personal-data changes.
+- Files to touch: one forward-only migration, exercise library/action/progress integration, gym analytics helpers/tests, progress dashboard, this plan.
+- Verification: primary/secondary selection persists; secondary does not double-count a set; yearly buckets carry real chronological dates; months sort Jan–Dec; schedule displays its saved effective date; all period values aggregate inclusively.
+- Status: Complete. Secondary-muscle migration applied successfully in Supabase; TypeScript and lint pass. Vitest remains blocked in this workspace by Windows `spawn EPERM`.
+
 ### Phase 3.5 — private verified workout-history import
 - Goal: import the user’s 40 verified dated workout sessions into only their authenticated account while preserving source uncertainty.
 - Scope: support historical reps-only, assisted, and duration records without fabricating load, create user-owned exercise variants as necessary, and perform a one-time account-scoped import. Never place the export or personal data in Git, migrations, or application fixtures.

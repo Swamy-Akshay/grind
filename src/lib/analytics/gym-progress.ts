@@ -56,8 +56,11 @@ export function buildMonthlyWorkoutSeries(workouts: WorkoutProgressInput[], year
 
 /** Exactly 52 chronological weekly buckets. The final bucket absorbs the year-end remainder. */
 export function buildYearlyWorkoutSeries(workouts: WorkoutProgressInput[], year: number): WorkoutProgressPoint[] {
-  const buckets = Array.from({ length: 52 }, (_, index) => ({ date: `${year}-W${String(index + 1).padStart(2, "0")}`, label: `W${index + 1}`, workouts: 0, sets: 0, volumeKg: 0, month: "", axisLabel: "" }));
   const start = new Date(Date.UTC(year, 0, 1));
+  const buckets = Array.from({ length: 52 }, (_, index) => {
+    const bucketStart = addDays(start, index * 7);
+    return { date: dayKey(bucketStart), label: bucketStart.toLocaleDateString("en", { month: "short", day: "numeric", timeZone: "UTC" }), workouts: 0, sets: 0, volumeKg: 0, month: "", axisLabel: "" };
+  });
   const end = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
   let previousMonth = "";
   for (let index = 0; index < buckets.length; index += 1) {
@@ -233,6 +236,10 @@ export function buildLoggedSetWindows(records: ExerciseSetRecord[], endDate: str
 
 export function buildWorkingSetWindows(records: ExerciseSetRecord[], endDate: string) {
   return { weekly: summarizeWorkingSets(records, shiftCalendarDate(endDate, -6), endDate), fourteenDay: summarizeWorkingSets(records, shiftCalendarDate(endDate, -13), endDate) };
+}
+
+export function buildWorkingSetWindow(records: ExerciseSetRecord[], endDate: string, days: number): LoggedSetSummary {
+  return summarizeWorkingSets(records, shiftCalendarDate(endDate, -(Math.max(1, days) - 1)), endDate);
 }
 
 export type ConsistencyResult = { plannedSessions: number; completedPlannedSessions: number; consistencyPercent: number };

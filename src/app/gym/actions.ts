@@ -53,10 +53,10 @@ export async function updateRoutine(_: GymFormState, formData: FormData): Promis
 }
 
 export async function saveExercise(_: GymFormState, formData: FormData): Promise<GymFormState> {
-  const id = formData.get("id"); const name = String(formData.get("name") ?? "").trim(); const muscleGroup = String(formData.get("muscleGroup") ?? "").trim(); const mode = formData.get("trackingMode");
+  const id = formData.get("id"); const name = String(formData.get("name") ?? "").trim(); const muscleGroup = String(formData.get("muscleGroup") ?? "").trim(); const secondaryMuscleGroup = String(formData.get("secondaryMuscleGroup") ?? "").trim() || null; const mode = formData.get("trackingMode");
   if (!name || !muscleGroup || (mode !== "weight_reps" && mode !== "duration")) return { error: "Enter an exercise name, muscle group, and input type." };
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return { error: "Please sign in again." };
-  const values = { name, muscle_group: muscleGroup, tracking_mode: mode };
+  const values = { name, muscle_group: muscleGroup, secondary_muscle_group: secondaryMuscleGroup, tracking_mode: mode };
   const result = typeof id === "string" && id ? await supabase.from("exercises").update(values).eq("id", id).eq("user_id", user.id) : await supabase.from("exercises").insert({ ...values, user_id: user.id });
   if (result.error) return { error: "Unable to save exercise. Names must be unique." }; revalidatePath("/gym/exercises"); revalidatePath("/gym/routines"); return { message: "Exercise saved." };
 }

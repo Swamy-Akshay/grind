@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildExerciseSessionPerformances, buildLoggedSetWindows, buildMonthlyWorkoutSeries, buildPlannedWorkoutDates, buildWorkingSetWindows, buildWorkingWeekSeries, buildWorkoutProgressSeries, buildYearlyWorkoutSeries, calculateResistanceVolumeLoad, calculateWorkoutConsistency, compareExerciseSessions, estimateSetOneRepMax, estimatedOneRepMax, summarizeLoggedSets, type ExerciseSetRecord } from "./gym-progress";
+import { buildExerciseSessionPerformances, buildLoggedSetWindows, buildMonthlyWorkoutSeries, buildPlannedWorkoutDates, buildWorkingSetWindow, buildWorkingSetWindows, buildWorkingWeekSeries, buildWorkoutProgressSeries, buildYearlyWorkoutSeries, calculateResistanceVolumeLoad, calculateWorkoutConsistency, compareExerciseSessions, estimateSetOneRepMax, estimatedOneRepMax, summarizeLoggedSets, type ExerciseSetRecord } from "./gym-progress";
 import { classifyExercise } from "./exercise-classification";
 
 const chest = { id: "bench", name: "Incline Barbell Bench Press", muscleGroup: "Chest", trackingMode: "weight_reps" as const };
@@ -16,7 +16,7 @@ describe("gym chart series", () => {
   });
   it("creates 52 yearly buckets and 12 month labels", () => {
     const series = buildYearlyWorkoutSeries([{ performedOn: "2026-12-31", setCount: 1, volumeKg: 100 }], 2026);
-    expect(series).toHaveLength(52); expect(series[51].volumeKg).toBe(100); expect(new Set(series.map((point) => point.month)).size).toBe(12); expect(series.filter((point) => point.axisLabel)).toHaveLength(12);
+    expect(series).toHaveLength(52); expect(series[0].date).toBe("2026-01-01"); expect(series[51].date).toBe("2026-12-24"); expect(series[51].volumeKg).toBe(100); expect(new Set(series.map((point) => point.month)).size).toBe(12); expect(series.filter((point) => point.axisLabel)).toHaveLength(12);
   });
   it("includes Monday through Saturday for the selected working week", () => expect(buildWorkingWeekSeries([{ performedOn: "2026-10-03", setCount: 2, volumeKg: 500 }], "2026-10-03").map((point) => point.date)).toEqual(["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"]));
 });
@@ -72,6 +72,13 @@ describe("muscle and consistency analytics", () => {
   it("counts only explicitly working sets in working-set windows", () => {
     const windows = buildWorkingSetWindows([set({ setType: "working" }), set({ setNumber: 2, setType: "warmup" }), set({ setNumber: 3, setType: null })], "2026-10-01");
     expect(windows.weekly.totalLoggedSets).toBe(1);
+  });
+  it("supports inclusive working-set windows beyond two weeks", () => {
+    expect(buildWorkingSetWindow([set({ performedOn: "2026-01-01", setType: "working" }), set({ performedOn: "2026-01-31", setNumber: 2, setType: "working" })], "2026-01-31", 30).totalLoggedSets).toBe(2);
+  });
+  it("honors explicitly selected primary metadata without double-counting its secondary muscle", () => {
+    const summary = summarizeLoggedSets([set({ exercise: { ...chest, secondaryMuscleGroup: "Triceps" } })], "2026-10-01", "2026-10-01");
+    expect(summary.byPrimaryMuscle).toEqual({ Chest: 1 });
   });
   it("uses explicit planned dates only for consistency and handles no plan safely", () => {
     expect(calculateWorkoutConsistency(["2026-10-01", "2026-10-03", "2026-10-05"], ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-03"])).toEqual({ plannedSessions: 3, completedPlannedSessions: 2, consistencyPercent: 66.67 });
