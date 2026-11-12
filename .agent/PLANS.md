@@ -14,6 +14,14 @@ Codex: write/update a plan here before any large multi-step feature. Keep the ac
 - Status:
 
 ## Active
+### Phase 3.5 — private verified workout-history import
+- Goal: import the user’s 40 verified dated workout sessions into only their authenticated account while preserving source uncertainty.
+- Scope: support historical reps-only, assisted, and duration records without fabricating load, create user-owned exercise variants as necessary, and perform a one-time account-scoped import. Never place the export or personal data in Git, migrations, or application fixtures.
+- Files to touch: a backward-compatible schema migration and temporary local import tooling only. No export data enters the repository.
+- Steps: validate the verified JSON; extend set storage for historical assistance/source text; apply migration; authenticate as the named user only; create missing user-owned exercise variants; insert the 40 exact sessions and 684 exact sets with `set_type`/`rir` null; verify counts and ownership; remove temporary import artifacts.
+- Verification: exact session/set counts, no duplicate dates, imported user ID only, no summary-only or undated references, no fabricated weights or classifications.
+- Status: Complete. The migration was applied and only the 40 exact user-supplied sessions were imported into `swamyakshay05@gmail.com`. Verification confirmed 684 sets, including 23 assisted and 6 timed sets; all historical set types and RIR remain null. One-time import tooling and no personal export data are retained in the repository.
+
 ### Phase 3.4 — gym analytics UI integration
 - Goal: record set classification and optional RIR, then present trustworthy exercise performance, working-set volume, and explicit-schedule consistency inside the existing Gym Progress page.
 - Scope: add a forward-only migration for nullable `set_type` and historical training schedules; validate/save set type and RIR; preserve legacy sets; query full user-owned history for exercise analytics; add focused progress controls/charts and concise guidance. Preserve existing theme, navigation, logger workflow, and total-volume charts.
